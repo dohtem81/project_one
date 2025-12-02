@@ -1,0 +1,56 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: project_one_db
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-project_one_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: project_one_backend
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-project_one_db}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend/app:/app/app
+
+  swagger:
+    image: swaggerapi/swagger-ui
+    container_name: project_one_swagger
+    ports:
+      - "8080:8080"
+    environment:
+      - SWAGGER_JSON_URL=http://localhost:8000/openapi.json
+    depends_on:
+      - backend     
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: project_one_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres           
+
+volumes:
+  postgres_data:
