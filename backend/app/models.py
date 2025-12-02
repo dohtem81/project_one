@@ -12,7 +12,7 @@ class DataRecord(Base):
     id = Column(Integer, primary_key=True, index=True)
     value = Column(Float, nullable=False)
     data_type = Column(String, nullable=True)
-    metadata = Column(JSON, nullable=True)
+    extra_data = Column(JSON, nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     def __repr__(self):

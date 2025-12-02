@@ -9,7 +9,7 @@ class DataCreate(BaseModel):
     """
     value: float
     data_type: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
+    extra_data: Optional[Dict[str, Any]] = None
 
 
 class DataResponse(BaseModel):
@@ -19,7 +19,7 @@ class DataResponse(BaseModel):
     id: int
     value: float
     data_type: Optional[str]
-    metadata: Optional[Dict[str, Any]]
+    extra_data: Optional[Dict[str, Any]]
     timestamp: datetime
 
     class Config:

@@ -45,7 +45,7 @@ async def create_data(data: DataCreate, db: Session = Depends(get_db)):
         db_record = DataRecord(
             value=data.value,
             data_type=data.data_type,
-            metadata=data.metadata,
+            extra_data=data.extra_data,
             timestamp=datetime.utcnow()
         )
         db.add(db_record)
@@ -59,7 +59,7 @@ async def create_data(data: DataCreate, db: Session = Depends(get_db)):
                 "id": db_record.id,
                 "value": db_record.value,
                 "data_type": db_record.data_type,
-                "metadata": db_record.metadata,
+                "extra_data": db_record.extra_data,
                 "timestamp": db_record.timestamp.isoformat()
             }
         }
