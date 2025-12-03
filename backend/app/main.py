@@ -29,7 +29,7 @@ app.add_middleware(
 # RabbitMQ configuration
 def get_rabbitmq_connection():
     try:
-        connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+        connection = pika.BlockingConnection(pika.ConnectionParameters('project_one_rabbitmq'))
         return connection
     except Exception as e:
         print(f"RabbitMQ connection error: {e}")
