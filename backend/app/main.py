@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List
 import json
+import uuid
+import pika
 from datetime import datetime
 
 from .database import engine, get_db
@@ -24,6 +26,39 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# RabbitMQ configuration
+def get_rabbitmq_connection():
+    try:
+        connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+        return connection
+    except Exception as e:
+        print(f"RabbitMQ connection error: {e}")
+        return None
+
+def publish_to_queue(queue_name: str, message: dict) -> bool:
+    """Publish message to RabbitMQ queue"""
+    try:
+        connection = get_rabbitmq_connection()
+        if not connection:
+            return False
+            
+        channel = connection.createChannel()
+        
+        # Declare queue as durable (survives broker restart)
+        channel.queue_declare(queue=queue_name, durable=True)
+        
+        # Publish with persistence
+        channel.basic_publish(
+            exchange='',
+            routing_key=queue_name,
+            body=json.dumps(message),
+            properties=pika.BasicProperties(delivery_mode=2)  # Make message persistent
+        )
+        connection.close()
+        return True
+    except Exception as e:
+        print(f"Failed to publish to queue: {e}")
+        return False
 
 @app.get("/")
 async def root():
@@ -36,7 +71,39 @@ async def health_check():
 
 
 @app.post("/api/data", response_model=DataResponse)
-async def create_data(data: DataCreate, db: Session = Depends(get_db)):
+async def create_data(data: DataCreate):
+    """
+    Receive data via POST and queue for processing
+    """
+    try:
+        # Create message for queue
+        message_id = str(uuid.uuid4())
+        message = {
+            "id": message_id,
+            "operation": "CREATE",
+            "data": {
+                "value": data.value,
+                "data_type": data.data_type,
+                "extra_data": data.extra_data
+            },
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+        # Publish to queue
+        if publish_to_queue("data-processing", message):
+            return {
+                "message_id": message_id,
+                "status": "processing",
+                "message": "Data queued for processing"
+            }, 202
+        else:
+            # Fallback to direct processing if queue is unavailable
+            return await create_data_direct(data)
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error queuing data: {str(e)}")
+
+async def create_data_direct(data: DataCreate, db: Session = Depends(get_db)):
     """
     Receive data via POST, save to database, and broadcast to all WebSocket clients
     """
