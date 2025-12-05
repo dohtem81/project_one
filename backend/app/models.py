@@ -9,7 +9,7 @@ class DataRecord(Base):
     """
     __tablename__ = "data_records"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     value = Column(Float, nullable=False)
     data_type = Column(String, nullable=True)
     extra_data = Column(JSON, nullable=True)

@@ -3,8 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List
 import json
-import uuid
 import pika
+import os
 from datetime import datetime
 
 from .database import engine, get_db
@@ -29,7 +29,15 @@ app.add_middleware(
 # RabbitMQ configuration
 def get_rabbitmq_connection():
     try:
-        connection = pika.BlockingConnection(pika.ConnectionParameters('project_one_rabbitmq'))
+        credentials = pika.PlainCredentials(
+            os.getenv('RABBITMQ_USER', 'admin'),
+            os.getenv('RABBITMQ_PASSWORD', 'admin')
+        )
+        parameters = pika.ConnectionParameters(
+            host=os.getenv('RABBITMQ_HOST', 'rabbitmq'),
+            credentials=credentials
+        )
+        connection = pika.BlockingConnection(parameters)
         return connection
     except Exception as e:
         print(f"RabbitMQ connection error: {e}")
@@ -42,7 +50,7 @@ def publish_to_queue(queue_name: str, message: dict) -> bool:
         if not connection:
             return False
             
-        channel = connection.createChannel()
+        channel = connection.channel()
         
         # Declare queue as durable (survives broker restart)
         channel.queue_declare(queue=queue_name, durable=True)
@@ -70,74 +78,31 @@ async def health_check():
     return {"status": "healthy"}
 
 
-@app.post("/api/data", response_model=DataResponse)
+@app.post("/api/data", status_code=202)
 async def create_data(data: DataCreate):
     """
-    Receive data via POST and queue for processing
+    Receive data from IoT device and publish to RabbitMQ queue
+    Arduino POSTs here, we queue it for processing
+    Returns 202 Accepted (message queued for processing)
     """
     try:
-        # Create message for queue
-        message_id = str(uuid.uuid4())
         message = {
-            "id": message_id,
-            "operation": "CREATE",
-            "data": {
-                "value": data.value,
-                "data_type": data.data_type,
-                "extra_data": data.extra_data
-            },
+            "value": data.value,
+            "data_type": data.data_type,
+            "extra_data": data.extra_data,
             "timestamp": datetime.utcnow().isoformat()
         }
         
-        # Publish to queue
-        if publish_to_queue("data-processing", message):
-            return {
-                "message_id": message_id,
-                "status": "processing",
-                "message": "Data queued for processing"
-            }, 202
-        else:
-            # Fallback to direct processing if queue is unavailable
-            return await create_data_direct(data)
-            
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error queuing data: {str(e)}")
-
-async def create_data_direct(data: DataCreate, db: Session = Depends(get_db)):
-    """
-    Receive data via POST, save to database, and broadcast to all WebSocket clients
-    """
-    try:
-        # Create new record
-        db_record = DataRecord(
-            value=data.value,
-            data_type=data.data_type,
-            extra_data=data.extra_data,
-            timestamp=datetime.utcnow()
-        )
-        db.add(db_record)
-        db.commit()
-        db.refresh(db_record)
+        # Publish to RabbitMQ for async processing
+        success = publish_to_queue("iot-data", message)
         
-        # Broadcast to all connected WebSocket clients
-        broadcast_data = {
-            "event": "data_update",
-            "data": {
-                "id": db_record.id,
-                "value": db_record.value,
-                "data_type": db_record.data_type,
-                "extra_data": db_record.extra_data,
-                "timestamp": db_record.timestamp.isoformat()
-            }
-        }
-        await manager.broadcast(json.dumps(broadcast_data))
+        if not success:
+            raise HTTPException(status_code=503, detail="Queue service unavailable")
         
-        return db_record
+        return {"status": "accepted", "message": "Data queued for processing"}
     
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error saving data: {str(e)}")
-
+        raise HTTPException(status_code=500, detail=f"Error queuing data: {str(e)}")
 
 @app.get("/api/data", response_model=List[DataResponse])
 async def get_data(limit: int = 100, db: Session = Depends(get_db)):
