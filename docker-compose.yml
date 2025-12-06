@@ -33,11 +33,11 @@ services:
       timeout: 5s
       retries: 5      
 
-  backend:
+  gateway:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: project_one_backend
+    container_name: project_one_gateway
     ports:
       - "8000:8000"
     environment:
@@ -56,7 +56,7 @@ services:
     environment:
       - SWAGGER_JSON_URL=http://localhost:8000/openapi.json
     depends_on:
-      - backend     
+      - gateway     
 
   pgadmin:
     image: dpage/pgadmin4
