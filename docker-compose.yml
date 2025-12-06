@@ -35,18 +35,23 @@ services:
 
   gateway:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./gateway/Dockerfile
     container_name: project_one_gateway
     ports:
       - "8000:8000"
     environment:
       DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-project_one_db}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: ${RABBITMQ_USER:-admin}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-admin}
     depends_on:
       postgres:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     volumes:
-      - ./backend/app:/app/app
+      - ./gateway/app:/app/app
 
   swagger:
     image: swaggerapi/swagger-ui
@@ -68,6 +73,25 @@ services:
       - "5050:80"
     depends_on:
       - postgres           
+
+  iotconsumer:
+    build:
+      context: .
+      dockerfile: ./iotconsumer/Dockerfile
+    container_name: project_one_iotconsumer
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-project_one_db}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: ${RABBITMQ_USER:-admin}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-admin}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./iotconsumer:/app
+    restart: unless-stopped
 
 volumes:
   postgres_data:

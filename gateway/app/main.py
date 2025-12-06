@@ -15,7 +15,7 @@ from .websocket_manager import manager
 # Create database tables
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Real-Time Data Backend")
+app = FastAPI(title="Real-Time Data Gateway")
 
 # CORS configuration
 app.add_middleware(
@@ -70,7 +70,7 @@ def publish_to_queue(queue_name: str, message: dict) -> bool:
 
 @app.get("/")
 async def root():
-    return {"message": "Real-Time Data Backend API", "status": "running"}
+    return {"message": "Real-Time Data Gateway API", "status": "running"}
 
 
 @app.get("/health")

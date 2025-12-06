@@ -2,10 +2,16 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY requirements.txt .
+# Copy and install shared objects package first
+COPY ./sharedobjects /sharedobjects
+RUN pip install -e /sharedobjects
+
+# Install dependencies
+COPY ./gateway/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY ./app ./app
+# Copy application code
+COPY ./gateway .
 
 EXPOSE 8000
 
