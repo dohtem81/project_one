@@ -6,7 +6,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 import sys
-#from sharedobjects.models import *
+from commonpackages.models import *
 
 # Database setup
 DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://postgres:postgres@postgres:5432/project_one_db')
@@ -48,35 +48,35 @@ def process_message(ch, method, properties, body):
         print(f"Processing message: {message}")
         
         # Save to database
-        # db = SessionLocal()
-        # try:
-        #     record = DataRecord(
-        #         value=message['value'],
-        #         data_type=message.get('data_type'),
-        #         extra_data=message.get('extra_data'),
-        #         timestamp=message.get('timestamp')
-        #     )
-        #     db.add(record)
-        #     db.commit()
-        #     db.refresh(record)
+        db = SessionLocal()
+        try:
+            record = DataRecord(
+                value=message['value'],
+                data_type=message.get('data_type'),
+                extra_data=message.get('extra_data'),
+                timestamp=message.get('timestamp')
+            )
+            db.add(record)
+            db.commit()
+            db.refresh(record)
             
-        #     # Broadcast to WebSocket clients
-        #     broadcast_data = {
-        #         "id": record.id,
-        #         "value": record.value,
-        #         "data_type": record.data_type,
-        #         "extra_data": record.extra_data,
-        #         "timestamp": record.timestamp.isoformat()
-        #     }
+            # Broadcast to WebSocket clients
+            broadcast_data = {
+                "id": record.id,
+                "value": record.value,
+                "data_type": record.data_type,
+                "extra_data": record.extra_data,
+                "timestamp": record.timestamp.isoformat()
+            }
             
-        #     # This would require async handling - for now just log
-        #     print(f"Data saved: {broadcast_data}")
+            # This would require async handling - for now just log
+            print(f"Data saved: {broadcast_data}")
             
-        #     # Acknowledge message
-        #     ch.basic_ack(delivery_tag=method.delivery_tag)
+            # Acknowledge message
+            ch.basic_ack(delivery_tag=method.delivery_tag)
             
-        # finally:
-        #     db.close()
+        finally:
+            db.close()
             
     except Exception as e:
         print(f"Error processing message: {e}")

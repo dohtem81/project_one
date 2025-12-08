@@ -8,7 +8,7 @@ import os
 from datetime import datetime
 
 from .database import engine, get_db
-from .models import Base, DataRecord
+from commonpackages.models import Base, DataRecord
 from .schemas import DataCreate, DataResponse
 from .websocket_manager import manager
 
