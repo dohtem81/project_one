@@ -5,6 +5,9 @@ import argparse
 import sys
 from typing import Optional
 from commonpackages.sensor import TemperatureSensor, VibrationSensor
+from commonpackages.models import DataRecord
+import os
+import requests
 
 #!/usr/bin/env python3
 """
@@ -33,27 +36,52 @@ def simulate_loop(duration: Optional[float] = None) -> None:
 
     vibration_interval = 0.05  # 50 ms
     temperature_interval = 1.0  # 1 s
+    log_interval = 1.0  # 1 s
     vibration_sensor = VibrationSensor("left_front_bearing")
     temperature_sensor = TemperatureSensor("ambient")
     temperature_sensor.value = 20.0  # initial temp
 
     next_temp_time = now() + temperature_interval
+    next_log_time = now() + log_interval
 
     try:
         while True:
             loop_start = now()
-            temperature_value = 20.0  # starting temp
 
             # Vibration update (every 50ms)
-            vibration_sensor.value = random.uniform(0.0, 5.0)  # example: 0-5 m/s^2 or arbitrary units
-            print(vibration_sensor.serialize(), flush=True)
+            vibration_sensor.add_sample(random.uniform(0.0, 5.0), loop_start * 1000)  # example: 0-5 m/s^2 or arbitrary units
 
             # Temperature update (every 1s)
             if loop_start >= next_temp_time:
                 temperature_sensor.value = temperature_sensor.value + random.uniform(-0.1, 0.1)  # simulate temp fluctuation
-                print(temperature_sensor.serialize(), flush=True)
-                # schedule next temp (avoid drift)
                 next_temp_time = loop_start + temperature_interval
+
+            # Logging (every 1s) - this is equivalent to reporting data to the cloud/server
+            if loop_start >= next_log_time:
+                next_log_time = loop_start + log_interval
+
+                vibrationRecord = DataRecord(
+                    data_type="vibration",
+                    extra_data=vibration_sensor.serialize()
+                )
+
+
+                temperatureRecord = DataRecord(
+                    data_type="temperature",
+                    extra_data=temperature_sensor.serialize()
+                )
+
+                #report to API
+                try:
+                    requests.post(os.getenv("IOTGATEWAY", "http://localhost:8000/api/data"), 
+                                  json=temperatureRecord.broadcast_dict())
+                    requests.post(os.getenv("IOTGATEWAY", "http://localhost:8000/api/data"), 
+                                  json=vibrationRecord.broadcast_dict())
+                except requests.exceptions.RequestException as e:
+                    print(f"Error sending data to API: {e}", file=sys.stderr)
+
+                # reset vibration values
+                vibration_sensor.reset()
 
             # exit if duration reached
             if end_time is not None and loop_start >= end_time:

@@ -9,6 +9,7 @@ services:
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_USER: ${RABBITMQ_USER:-admin}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-admin}
+      IOTGATEWAY: http://project_one_gateway:8000/api/data
     volumes:
       - ./tests/integration:/app
     restart: unless-stopped

@@ -51,7 +51,6 @@ def process_message(ch, method, properties, body):
         db = SessionLocal()
         try:
             record = DataRecord(
-                value=message['value'],
                 data_type=message.get('data_type'),
                 extra_data=message.get('extra_data'),
                 timestamp=message.get('timestamp')
@@ -63,7 +62,6 @@ def process_message(ch, method, properties, body):
             # Broadcast to WebSocket clients
             broadcast_data = {
                 "id": record.id,
-                "value": record.value,
                 "data_type": record.data_type,
                 "extra_data": record.extra_data,
                 "timestamp": record.timestamp.isoformat()

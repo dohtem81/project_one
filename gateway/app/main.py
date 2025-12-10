@@ -87,10 +87,8 @@ async def create_data(data: DataCreate):
     """
     try:
         message = {
-            "value": data.value,
             "data_type": data.data_type,
             "extra_data": data.extra_data,
-            "timestamp": datetime.utcnow().isoformat()
         }
         
         # Publish to RabbitMQ for async processing

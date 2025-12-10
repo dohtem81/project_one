@@ -9,10 +9,15 @@ class DataRecord(Base):
     __tablename__ = "data_records"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    value = Column(Float, nullable=False)
     data_type = Column(String, nullable=True)
     extra_data = Column(JSON, nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     def __repr__(self):
-        return f"<DataRecord(id={self.id}, value={self.value}, timestamp={self.timestamp})>"
+        return f"<DataRecord(id={self.id}, data_type={self.data_type}, timestamp={self.timestamp})>"
+    
+    def broadcast_dict(self):
+        return {
+            "data_type": self.data_type,
+            "extra_data": self.extra_data,
+        }

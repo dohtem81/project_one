@@ -6,6 +6,7 @@ class Sensor:
     def __init__(self, name, sensor_type):
         self.name = name
         self.sensor_type = sensor_type
+        self.unit = None
 
     @abstractmethod
     def read_value(self):
@@ -41,11 +42,20 @@ class TemperatureSensor(Sensor):
         return getattr(self, "_value", None)
     
     def serialize(self):
+        return {
+            "name": self.name,
+            "sensor_type": self.sensor_type,
+            "value": self.value,
+            "prev_value": self.prev_value
+        }
+  
+    def toString(self):
         data = {
             "name": self.name,
             "sensor_type": self.sensor_type,
             "value": self.value,
             "prev_value": self.prev_value,
+            "unit": "Celsius"
         }
         return json.dumps(data)
 
@@ -60,45 +70,51 @@ class VibrationSensor(Sensor):
         self._samples.append(value)
         # store the timestamp of the last sample to use the parameter
         self._last_report_ts = timestamp_ms
-
-        # Recalculate live aggregate (including average) on every new sample
+        self.recalculate_aggregates()
+    
+    def recalculate_aggregates(self):
         count = len(self._samples)
         if count:
             self._peak = max(self._samples, key=abs)
             self._avg = sum(self._samples) / count
             self._rms = (sum(s * s for s in self._samples) / count) ** 0.5
-            self._prev_value = getattr(self, "_value", None)
-            self._value = {"peak": self._peak, "rms": self._rms, "avg": self._avg, "count": count}
+        else:
+            self._peak = None
+            self._avg = None
+            self._rms = None
 
     def read_value(self):
-        return getattr(self, "_value", None)
+        return getattr(self, "_avg", None)
 
     @property
     def value(self):
-        return getattr(self, "_value", None)
-
-    @property
-    def prev_value(self):
-        return getattr(self, "_prev_value", None)
-    
-    @value.setter
-    def value(self, new_value):
-        self._prev_value = self._value
-        self._value = new_value
+        return self._samples[-1] if self._samples else None
 
     def serialize(self):
-        return json.dumps({
+        return {
             "name": self.name,
+            "timestamp": self._last_report_ts,
             "sensor_type": self.sensor_type,
-            "value": self.value,
-            "prev_value": self.prev_value,
-        })
+            "avg": self._avg,
+            "peak": self._peak,
+            "rms": self._rms,
+            "count": len(self._samples),
+            "unit": "m/s^2"
+        }
     
+    def toString(self):
+         return json.dumps({
+            "nm": self.name,
+            "ts": self._last_report_ts,
+            "tp": self.sensor_type,
+            "av": self._avg,
+            "pk": self._peak,
+            "rms": self._rms,
+            "cnt": len(self._samples)
+        })   
     def reset(self):
         """Clear accumulated vibration metrics and samples."""
         self._samples.clear()
-        self._prev_value = getattr(self, "_value", None)
-        self._value = None
         self._last_report_ts = None
         self._peak = None
         self._avg = None
