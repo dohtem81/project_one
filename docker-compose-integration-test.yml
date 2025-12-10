@@ -1,0 +1,18 @@
+services:         
+  sensorsimulator:
+    build:
+      context: .
+      dockerfile: ./tests/integration/Dockerfile
+    container_name: project_one_sensorsimulator
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-project_one_db}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: ${RABBITMQ_USER:-admin}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-admin}
+    volumes:
+      - ./tests/integration:/app
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
