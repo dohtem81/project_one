@@ -111,6 +111,19 @@ async def get_data(limit: int = 100, db: Session = Depends(get_db)):
     return records
 
 
+@app.post("/api/broadcast")
+async def broadcast_data(data: dict):
+    """
+    Internal endpoint for broadcasting data to WebSocket clients
+    Called by IoT consumer after processing data
+    """
+    try:
+        # Broadcast to all connected WebSocket clients
+        await manager.broadcast(json.dumps(data))
+        return {"status": "broadcasted"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Broadcast failed: {str(e)}")
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     """

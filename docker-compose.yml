@@ -93,6 +93,36 @@ services:
       - ./iotconsumer:/app
     restart: unless-stopped
 
+  website:
+    build:
+      context: .
+      dockerfile: ./website/Dockerfile
+    container_name: project_one_website
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-project_one_db}
+      WEBSOCKET_URL: ${WEBSOCKET_URL:-ws://192.168.1.29:8000/ws}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./website/app:/app/app
+
+  postgres-mcp:
+    build:
+      context: ./postgres-mcp
+      dockerfile: Dockerfile
+    container_name: project_one_mcp
+    environment:
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}
+      MCP_PORT: 8081
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy    
+
 volumes:
   postgres_data:
   rabbitmq_data:

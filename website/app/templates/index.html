@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IoT Data Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>IoT Data Dashboard</h1>
+        
+        <div class="status-bar">
+            <div class="connection-status">
+                <span id="connectionStatus">🔴 Connecting...</span>
+            </div>
+        </div>
+
+        <div class="dashboard-content">
+            <div class="chart-section">
+                <h2>Ambient Temperature</h2>
+                <canvas id="ambientChart"></canvas>
+            </div>
+
+            <div class="wheels-grid">
+                <div class="wheel-chart-card">
+                    <h3>Front Left</h3>
+                    <canvas id="wheelChartFL"></canvas>
+                </div>
+                <div class="wheel-chart-card">
+                    <h3>Front Right</h3>
+                    <canvas id="wheelChartFR"></canvas>
+                </div>
+                <div class="wheel-chart-card">
+                    <h3>Rear Left</h3>
+                    <canvas id="wheelChartRL"></canvas>
+                </div>
+                <div class="wheel-chart-card">
+                    <h3>Rear Right</h3>
+                    <canvas id="wheelChartRR"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ambientChart, wheelChartFL, wheelChartFR, wheelChartRL, wheelChartRR;
+        let ambientData = [];
+        let wheelData = {
+            'left_front_bearing': { temp: [], vibAvg: [], vibPeak: [], vibRms: [] },
+            'right_front_bearing': { temp: [], vibAvg: [], vibPeak: [], vibRms: [] },
+            'left_rear_bearing': { temp: [], vibAvg: [], vibPeak: [], vibRms: [] },
+            'right_rear_bearing': { temp: [], vibAvg: [], vibPeak: [], vibRms: [] }
+        };
+        const maxDataPoints = 20;
+
+        // Initialize ambient chart
+        function initAmbientChart() {
+            const ctx = document.getElementById('ambientChart').getContext('2d');
+            ambientChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Temperature (°C)',
+                        data: [],
+                        borderColor: 'rgb(255, 99, 132)',
+                        backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 3,
+                        pointHoverRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {
+                        duration: 300
+                    },
+                    scales: {
+                        x: {
+                            display: true,
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: '#666',
+                                maxRotation: 0,
+                                maxTicksLimit: 10
+                            }
+                        },
+                        y: {
+                            display: true,
+                            min: 10,
+                            max: 50,
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            },
+                            ticks: {
+                                color: '#666',
+                                stepSize: 5,
+                                callback: function(value) {
+                                    return value + '°C';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                color: '#333',
+                                font: {
+                                    size: 12,
+                                    weight: 'bold'
+                                }
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            titleColor: '#fff',
+                            bodyColor: '#fff',
+                            callbacks: {
+                                label: function(context) {
+                                    return context.parsed.y.toFixed(2) + '°C';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Initialize wheel charts
+        function initWheelChart(canvasId, title) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            return new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Temperature (°C)',
+                            data: [],
+                            borderColor: 'rgb(255, 99, 132)',
+                            backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            fill: true,
+                            pointRadius: 2,
+                            pointHoverRadius: 4,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Vib Avg (m/s²)',
+                            data: [],
+                            borderColor: 'rgb(54, 162, 235)',
+                            backgroundColor: 'rgba(54, 162, 235, 0.05)',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            fill: false,
+                            pointRadius: 0,
+                            pointHoverRadius: 3,
+                            yAxisID: 'y1'
+                        },
+                        {
+                            label: 'Vib Peak (m/s²)',
+                            data: [],
+                            borderColor: 'rgb(255, 159, 64)',
+                            backgroundColor: 'rgba(255, 159, 64, 0.05)',
+                            borderWidth: 1.5,
+                            borderDash: [5, 5],
+                            tension: 0.4,
+                            fill: false,
+                            pointRadius: 0,
+                            pointHoverRadius: 3,
+                            yAxisID: 'y1'
+                        },
+                        {
+                            label: 'Vib RMS (m/s²)',
+                            data: [],
+                            borderColor: 'rgb(153, 102, 255)',
+                            backgroundColor: 'rgba(153, 102, 255, 0.05)',
+                            borderWidth: 1.5,
+                            borderDash: [2, 2],
+                            tension: 0.4,
+                            fill: false,
+                            pointRadius: 0,
+                            pointHoverRadius: 3,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {
+                        duration: 300
+                    },
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    scales: {
+                        x: {
+                            display: true,
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: '#666',
+                                maxRotation: 0,
+                                maxTicksLimit: 8
+                            }
+                        },
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            min: 10,
+                            max: 50,
+                            grid: {
+                                color: 'rgba(255, 99, 132, 0.1)'
+                            },
+                            ticks: {
+                                color: 'rgb(255, 99, 132)',
+                                stepSize: 10,
+                                callback: function(value) {
+                                    return value + '°C';
+                                }
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            min: 0,
+                            max: 10,
+                            grid: {
+                                drawOnChartArea: false
+                            },
+                            ticks: {
+                                color: 'rgb(54, 162, 235)',
+                                stepSize: 2,
+                                callback: function(value) {
+                                    return value + ' m/s²';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                color: '#333',
+                                font: {
+                                    size: 10
+                                },
+                                boxWidth: 12,
+                                padding: 8
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 8,
+                            titleColor: '#fff',
+                            bodyColor: '#fff',
+                            bodyFont: {
+                                size: 11
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function initWheelCharts() {
+            wheelChartFL = initWheelChart('wheelChartFL', 'Front Left');
+            wheelChartFR = initWheelChart('wheelChartFR', 'Front Right');
+            wheelChartRL = initWheelChart('wheelChartRL', 'Rear Left');
+            wheelChartRR = initWheelChart('wheelChartRR', 'Rear Right');
+        }
+
+        // Update wheel chart
+        function updateWheelChart(sensorName) {
+            let chart;
+            if (sensorName === 'left_front_bearing') chart = wheelChartFL;
+            else if (sensorName === 'right_front_bearing') chart = wheelChartFR;
+            else if (sensorName === 'left_rear_bearing') chart = wheelChartRL;
+            else if (sensorName === 'right_rear_bearing') chart = wheelChartRR;
+            else return;
+
+            const data = wheelData[sensorName];
+            
+            // Sync labels from temp or any vib data
+            const labels = data.temp.length > 0 ? data.temp.map(d => d.time) : 
+                          data.vibAvg.length > 0 ? data.vibAvg.map(d => d.time) : [];
+            
+            chart.data.labels = labels;
+            chart.data.datasets[0].data = data.temp.map(d => d.value);
+            chart.data.datasets[1].data = data.vibAvg.map(d => d.value);
+            chart.data.datasets[2].data = data.vibPeak.map(d => d.value);
+            chart.data.datasets[3].data = data.vibRms.map(d => d.value);
+            chart.update('none');
+        }
+
+        // Load historical data
+        async function loadHistoricalData() {
+            try {
+                console.log('Loading ambient historical data...');
+                const ambientResponse = await fetch('/api/ambient-history');
+                const ambientResult = await ambientResponse.json();
+                console.log('Ambient historical data received:', ambientResult);
+                
+                if (ambientResult.data && ambientResult.data.length > 0) {
+                    // Parse UTC timestamps and convert to local time
+                    ambientData = ambientResult.data.map(d => {
+                        const utcDate = new Date(d.timestamp);
+                        return {
+                            time: utcDate.toLocaleTimeString(),
+                            value: d.value,
+                            timestamp: utcDate.getTime()
+                        };
+                    });
+                    
+                    console.log('Mapped ambient data:', ambientData);
+                    
+                    ambientChart.data.labels = ambientData.map(d => d.time);
+                    ambientChart.data.datasets[0].data = ambientData.map(d => d.value);
+                    ambientChart.update('none');
+                    console.log('Ambient chart updated with historical data');
+                } else {
+                    console.log('No ambient historical data available');
+                }
+            } catch (e) {
+                console.error('Error loading ambient historical data:', e);
+            }
+
+            try {
+                console.log('Loading wheels historical data...');
+                const wheelsResponse = await fetch('/api/wheels-history');
+                const wheelsResult = await wheelsResponse.json();
+                console.log('Wheels historical data received:', wheelsResult);
+                
+                if (wheelsResult.data) {
+                    // Load data for each wheel sensor
+                    for (const [sensorName, sensorData] of Object.entries(wheelsResult.data)) {
+                        if (wheelData[sensorName]) {
+                            // Load temperature data
+                            if (sensorData.temperature && sensorData.temperature.length > 0) {
+                                wheelData[sensorName].temp = sensorData.temperature.map(d => {
+                                    const utcDate = new Date(d.timestamp);
+                                    return {
+                                        time: utcDate.toLocaleTimeString(),
+                                        value: d.value
+                                    };
+                                });
+                            }
+                            
+                            // Load vibration data
+                            if (sensorData.vibration && sensorData.vibration.length > 0) {
+                                wheelData[sensorName].vibAvg = sensorData.vibration.map(d => {
+                                    const utcDate = new Date(d.timestamp);
+                                    return {
+                                        time: utcDate.toLocaleTimeString(),
+                                        value: d.avg
+                                    };
+                                });
+                                wheelData[sensorName].vibPeak = sensorData.vibration.map(d => {
+                                    const utcDate = new Date(d.timestamp);
+                                    return {
+                                        time: utcDate.toLocaleTimeString(),
+                                        value: d.peak
+                                    };
+                                });
+                                wheelData[sensorName].vibRms = sensorData.vibration.map(d => {
+                                    const utcDate = new Date(d.timestamp);
+                                    return {
+                                        time: utcDate.toLocaleTimeString(),
+                                        value: d.rms
+                                    };
+                                });
+                            }
+                            
+                            // Update the chart
+                            updateWheelChart(sensorName);
+                        }
+                    }
+                    console.log('Wheel charts updated with historical data');
+                } else {
+                    console.log('No wheels historical data available');
+                }
+            } catch (e) {
+                console.error('Error loading wheels historical data:', e);
+            }
+        }
+
+        // Update chart with new data
+        function updateChart(timestamp, value) {
+            ambientData.push({ time: timestamp, value: value });
+            
+            // Simple limit to prevent unlimited growth
+            if (ambientData.length > 100) {
+                ambientData.shift();
+            }
+
+            ambientChart.data.labels = ambientData.map(d => d.time);
+            ambientChart.data.datasets[0].data = ambientData.map(d => d.value);
+            ambientChart.update('none');
+        }
+
+        // WebSocket connection
+        function connectWebSocket() {
+            const gatewayUrl = '{{ websocket_url }}';
+            console.log('Connecting to WebSocket:', gatewayUrl);
+            const ws = new WebSocket(gatewayUrl);
+
+            ws.onopen = function(event) {
+                console.log('Connected to WebSocket');
+                document.getElementById('connectionStatus').textContent = '🟢 Connected';
+                document.getElementById('connectionStatus').style.color = 'green';
+            };
+
+            ws.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    console.log('Received WebSocket data:', data);
+                    
+                    const utcDate = new Date(data.timestamp);
+                    const timestamp = utcDate.toLocaleTimeString();
+                    const sensorName = data.extra_data.name;
+                    
+                    if (data.data_type === 'temperature') {
+                        if (sensorName === 'ambient') {
+                            const value = data.extra_data.value;
+                            console.log('Updating ambient chart with:', timestamp, value);
+                            updateChart(timestamp, value);
+                        } else if (wheelData[sensorName]) {
+                            // Wheel temperature data
+                            const value = data.extra_data.value;
+                            wheelData[sensorName].temp.push({ time: timestamp, value: value });
+                            if (wheelData[sensorName].temp.length > maxDataPoints) {
+                                wheelData[sensorName].temp.shift();
+                            }
+                            updateWheelChart(sensorName);
+                        }
+                    } else if (data.data_type === 'vibration' && wheelData[sensorName]) {
+                        // Wheel vibration data (avg, peak, rms)
+                        const avgValue = data.extra_data.avg;
+                        const peakValue = data.extra_data.peak;
+                        const rmsValue = data.extra_data.rms;
+                        
+                        wheelData[sensorName].vibAvg.push({ time: timestamp, value: avgValue });
+                        wheelData[sensorName].vibPeak.push({ time: timestamp, value: peakValue });
+                        wheelData[sensorName].vibRms.push({ time: timestamp, value: rmsValue });
+                        
+                        if (wheelData[sensorName].vibAvg.length > maxDataPoints) {
+                            wheelData[sensorName].vibAvg.shift();
+                            wheelData[sensorName].vibPeak.shift();
+                            wheelData[sensorName].vibRms.shift();
+                        }
+                        updateWheelChart(sensorName);
+                    }
+                } catch (e) {
+                    console.error('Error parsing WebSocket data:', e);
+                }
+            };
+
+            ws.onclose = function(event) {
+                console.log('WebSocket connection closed');
+                document.getElementById('connectionStatus').textContent = '🔴 Disconnected';
+                document.getElementById('connectionStatus').style.color = 'red';
+                setTimeout(connectWebSocket, 5000);
+            };
+
+            ws.onerror = function(error) {
+                console.error('WebSocket error:', error);
+                document.getElementById('connectionStatus').textContent = '🔴 Error';
+                document.getElementById('connectionStatus').style.color = 'red';
+            };
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', async function() {
+            initAmbientChart();
+            initWheelCharts();
+            await loadHistoricalData();
+            connectWebSocket();
+        });
+    </script>
+</body>
+</html>

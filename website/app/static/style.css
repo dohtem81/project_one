@@ -1,0 +1,186 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #333;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Container */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1rem;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Heading */
+h1 {
+    color: white;
+    text-align: center;
+    font-size: clamp(1.5rem, 5vw, 2.5rem);
+    margin-bottom: 1.5rem;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Status Bar */
+.status-bar {
+    background: white;
+    padding: 1rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    margin-bottom: 1.5rem;
+}
+
+.connection-status {
+    text-align: center;
+}
+
+.connection-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.connection-status span {
+    font-size: clamp(0.9rem, 2.5vw, 1rem);
+    font-weight: 600;
+}
+
+/* Dashboard Content */
+.dashboard-content {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    flex: 1;
+}
+
+.dashboard-content p {
+    color: #666;
+    font-size: clamp(0.9rem, 2.5vw, 1rem);
+    text-align: center;
+}
+
+/* Chart Section */
+.chart-section {
+    width: 100%;
+}
+
+.chart-section h2 {
+    color: #333;
+    font-size: clamp(1.1rem, 3vw, 1.5rem);
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+#ambientChart {
+    width: 100% !important;
+    height: 20vh !important;
+    min-height: 150px;
+    max-height: 250px;
+}
+
+/* Wheels Grid */
+.wheels-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    margin-top: 2rem;
+    width: 100%;
+}
+
+.wheel-chart-card {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 1rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.wheel-chart-card h3 {
+    color: #333;
+    font-size: clamp(0.9rem, 2.5vw, 1.1rem);
+    margin-bottom: 0.75rem;
+    text-align: center;
+}
+
+.wheel-chart-card canvas {
+    width: 100% !important;
+    height: 200px !important;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .container {
+        padding: 0.75rem;
+    }
+
+    h1 {
+        font-size: 1.75rem;
+        margin-bottom: 1rem;
+    }
+
+    .status-bar {
+        padding: 0.75rem;
+    }
+
+    .dashboard-content {
+        padding: 1rem;
+    }
+
+    .wheels-grid {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+
+    .wheel-chart-card canvas {
+        height: 180px !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .container {
+        padding: 0.5rem;
+    }
+
+    h1 {
+        font-size: 1.5rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .status-bar {
+        padding: 0.5rem;
+    }
+
+    .dashboard-content {
+        padding: 0.75rem;
+    }
+
+    .wheels-grid {
+        gap: 0.5rem;
+    }
+
+    .wheel-chart-card {
+        padding: 0.75rem;
+    }
+
+    .wheel-chart-card canvas {
+        height: 160px !important;
+    }
+}

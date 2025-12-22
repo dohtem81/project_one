@@ -59,7 +59,7 @@ def process_message(ch, method, properties, body):
             db.commit()
             db.refresh(record)
             
-            # Broadcast to WebSocket clients
+            # Broadcast to WebSocket clients via HTTP call to gateway
             broadcast_data = {
                 "id": record.id,
                 "data_type": record.data_type,
@@ -67,8 +67,17 @@ def process_message(ch, method, properties, body):
                 "timestamp": record.timestamp.isoformat()
             }
             
-            # This would require async handling - for now just log
-            print(f"Data saved: {broadcast_data}")
+            # Call gateway's broadcast endpoint
+            try:
+                import requests
+                gateway_url = os.getenv('GATEWAY_URL', 'http://gateway:8000')
+                response = requests.post(f"{gateway_url}/api/broadcast", json=broadcast_data, timeout=5)
+                if response.status_code == 200:
+                    print(f"Data broadcasted to WebSocket clients: {record.id}")
+                else:
+                    print(f"Failed to broadcast data: {response.status_code}")
+            except Exception as e:
+                print(f"Error broadcasting to WebSocket: {e}")
             
             # Acknowledge message
             ch.basic_ack(delivery_tag=method.delivery_tag)

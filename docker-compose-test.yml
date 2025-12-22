@@ -1,4 +1,20 @@
-services:         
+services:
+  unittests:
+    build:
+      context: .
+      dockerfile: ./tests/unit/Dockerfile
+    container_name: project_one_unittests
+    environment:
+      PYTHONPATH: /opt/commonpackages/src:/app/gateway/app:/app/website/app
+    volumes:
+      - ./commonpackages:/opt/commonpackages
+      - ./gateway:/app/gateway
+      - ./website:/app/website
+      - ./tests:/app/tests
+    command: pytest tests/unit -v --cov --cov-report=term-missing
+    profiles:
+      - test
+         
   sensorsimulator:
     build:
       context: .

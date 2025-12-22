@@ -37,9 +37,18 @@ def simulate_loop(duration: Optional[float] = None) -> None:
     vibration_interval = 0.05  # 50 ms
     temperature_interval = 1.0  # 1 s
     log_interval = 1.0  # 1 s
-    vibration_sensor = VibrationSensor("left_front_bearing")
-    temperature_sensor = TemperatureSensor("ambient")
-    temperature_sensor.value = 20.0  # initial temp
+    vibration_sensors = [VibrationSensor("left_front_bearing"), 
+                         VibrationSensor("right_front_bearing"), 
+                         VibrationSensor("left_rear_bearing"), 
+                         VibrationSensor("right_rear_bearing")]
+    temperature_sensors = [TemperatureSensor("ambient"), 
+                           TemperatureSensor("left_front_bearing"), 
+                           TemperatureSensor("right_front_bearing"), 
+                           TemperatureSensor("left_rear_bearing"), 
+                           TemperatureSensor("right_rear_bearing")]
+    # for each temperature sensor, set initial value
+    for sensor in temperature_sensors:
+        sensor.value = 25.0 + random.uniform(-5.0, 5.0)  # initial temp between 20-30C
 
     next_temp_time = now() + temperature_interval
     next_log_time = now() + log_interval
@@ -49,39 +58,45 @@ def simulate_loop(duration: Optional[float] = None) -> None:
             loop_start = now()
 
             # Vibration update (every 50ms)
-            vibration_sensor.add_sample(random.uniform(0.0, 5.0), loop_start * 1000)  # example: 0-5 m/s^2 or arbitrary units
+            # for each vibration sensor, add a random sample
+            for vibration_sensor in vibration_sensors:
+                vibration_sensor.add_sample(random.uniform(0.0, 5.0), loop_start * 1000)  # example: 0-5 m/s^2 or arbitrary units
 
             # Temperature update (every 1s)
             if loop_start >= next_temp_time:
-                temperature_sensor.value = temperature_sensor.value + random.uniform(-0.1, 0.1)  # simulate temp fluctuation
+                # for each temp sensor, slightly vary the temperature
+                for temperature_sensor in temperature_sensors:
+                    temperature_sensor.value = temperature_sensor.value + random.uniform(-0.1, 0.1)  # simulate temp fluctuation
                 next_temp_time = loop_start + temperature_interval
 
             # Logging (every 1s) - this is equivalent to reporting data to the cloud/server
             if loop_start >= next_log_time:
                 next_log_time = loop_start + log_interval
 
-                vibrationRecord = DataRecord(
-                    data_type="vibration",
-                    extra_data=vibration_sensor.serialize()
-                )
-
-
-                temperatureRecord = DataRecord(
-                    data_type="temperature",
-                    extra_data=temperature_sensor.serialize()
-                )
-
                 #report to API
                 try:
-                    requests.post(os.getenv("IOTGATEWAY", "http://localhost:8000/api/data"), 
+                    #for each temperature sensor as separate record
+                    for sensor in temperature_sensors:
+                        temperatureRecord = DataRecord(
+                            data_type="temperature",
+                            extra_data=sensor.serialize()
+                        )
+                        requests.post(os.getenv("IOTGATEWAY", "http://localhost:8000/api/data"), 
                                   json=temperatureRecord.broadcast_dict())
-                    requests.post(os.getenv("IOTGATEWAY", "http://localhost:8000/api/data"), 
-                                  json=vibrationRecord.broadcast_dict())
+                    # each vibration sensor as separate record
+                    for sensor in vibration_sensors:
+                        sensorRecord = DataRecord(
+                            data_type="vibration",
+                            extra_data=sensor.serialize()
+                        )
+                        requests.post(os.getenv("IOTGATEWAY", "http://localhost:8000/api/data"), 
+                                      json=sensorRecord.broadcast_dict())
                 except requests.exceptions.RequestException as e:
                     print(f"Error sending data to API: {e}", file=sys.stderr)
 
                 # reset vibration values
-                vibration_sensor.reset()
+                for vibration_sensor in vibration_sensors:
+                    vibration_sensor.reset()
 
             # exit if duration reached
             if end_time is not None and loop_start >= end_time:
