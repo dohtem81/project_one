@@ -111,11 +111,16 @@ services:
 
   postgres-mcp:
     build:
-      context: ./postgres-mcp
-      dockerfile: Dockerfile
+      context: ./servers-archived
+      dockerfile: src/postgres/Dockerfile
     container_name: project_one_mcp
+    command: ["postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}"]
+    stdin_open: true
+    tty: true    
     environment:
-      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5435/${DB_NAME}
+      DB_HOST: postgres
+      DB_PORT: 5432
       MCP_PORT: 8081
     ports:
       - "8081:8081"
