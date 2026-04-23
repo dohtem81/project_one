@@ -3,7 +3,7 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Shared package
-COPY commonpackages /opt/commonpackages
+COPY packages/commonpackages /opt/commonpackages
 RUN pip install /opt/commonpackages
 
 # Service requirements
